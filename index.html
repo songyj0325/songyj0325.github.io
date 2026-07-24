@@ -293,6 +293,7 @@
 
   .quote-header{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
   .yahoo-link-btn{display:inline-block;margin-left:auto;text-decoration:none;}
+  .fx-convert{font-size:11px;color:var(--text-secondary);font-weight:600;margin-left:6px;}
   .quote-symbol{font-size:15px;font-weight:800;}
   .quote-price{font-size:18px;font-weight:800;}
   .quote-change{font-size:13px;font-weight:700;}
@@ -449,10 +450,12 @@
         <div class="quote-header">
           <span class="quote-symbol" id="quoteSymbol"></span>
           <span class="quote-price" id="quotePrice"></span>
+          <span class="fx-convert" id="quotePriceFx"></span>
           <span class="quote-change" id="quoteChange"></span>
           <a class="btn-primary-outline yahoo-link-btn" id="yahooLink" href="#" target="_blank" rel="noopener noreferrer" hidden>🔗 Yahoo Finance에서 보기</a>
         </div>
         <div class="meta-row" id="dataMetaText"></div>
+        <div class="meta-row" id="fxRateText" hidden></div>
         <div class="fallback-banner" id="fallbackBanner" hidden></div>
         <canvas id="priceChartCanvas" height="170"></canvas>
         <canvas id="volChartCanvas" height="70" style="margin-top:14px;"></canvas>
@@ -475,8 +478,8 @@
 
       <div class="result-card">
         <h3>리스크 관리</h3>
-        <div class="risk-row"><span>손절가 (Stop Loss)</span><strong id="stopLossText"></strong></div>
-        <div class="risk-row"><span>목표가 (Target Price)</span><strong id="targetPriceText"></strong></div>
+        <div class="risk-row"><span>손절가 (Stop Loss)</span><span><strong id="stopLossText"></strong><span class="fx-convert" id="stopLossFx"></span></span></div>
+        <div class="risk-row"><span>목표가 (Target Price)</span><span><strong id="targetPriceText"></strong><span class="fx-convert" id="targetPriceFx"></span></span></div>
         <p class="caution-text" id="cautionText"></p>
       </div>
       <p class="disclaimer">※ 본 분석은 공개 시세 데이터를 기반으로 자동 계산된 참고 자료이며 투자 자문이 아닙니다. 투자 판단과 책임은 본인에게 있습니다.</p>
@@ -513,6 +516,10 @@
   let includePrePost = false;
   let priceChart = null, volChart = null;
   let lastInd = null;
+  let lastOut = null;
+  let fxTimer = null;
+  let currentFxRate = null;
+  const FX_POLL_MS = 30000;
 
   // ---------- elements ----------
   const modeGrid = document.getElementById("modeGrid");
@@ -623,6 +630,19 @@
     }
     if(candles.length < 30) throw new Error("충분한 데이터가 없습니다 (심볼: " + symbol + ", " + interval + ")");
     return { symbol, currency, companyName, candles };
+  }
+
+  // 미국 주식(USD) 조회 시 원/달러 환산 표시를 위한 실시간 환율(USDKRW=X) 조회.
+  async function fetchUsdKrwRate(){
+    const target = "https://query1.finance.yahoo.com/v8/finance/chart/USDKRW=X?range=1d&interval=1m";
+    const json = await fetchWithProxyFallback(target);
+    const result = json && json.chart && json.chart.result && json.chart.result[0];
+    if(!result) throw new Error("환율 데이터 없음");
+    const meta = result.meta || {};
+    if(typeof meta.regularMarketPrice === "number") return meta.regularMarketPrice;
+    const closes = ((result.indicators.quote[0] || {}).close || []).filter(v=>v!=null);
+    if(!closes.length) throw new Error("환율 데이터 없음");
+    return closes[closes.length-1];
   }
 
   // 자주 검색되는 국내 대형주는 로컬 사전으로 즉시 매핑해 검색 API 불안정성의 영향을 줄인다.
@@ -939,10 +959,12 @@
 
     const signal = decide(score);
     const report = `가격은 현재 ${fp(ind.last.c)}로, 지지선 ${fp(ind.support)}과 저항선 ${fp(ind.resistance)}을 기준으로 볼 때 ${ind.breakoutUp?"저항선을 상향 돌파":ind.breakoutDown?"지지선을 하향 이탈":"박스권 내에서 등락"}하고 있습니다. 직전 캔들은 ${ind.longUpperWick?"긴 위꼬리를 남기며 상단 매도 압력을 시사":ind.longLowerWick?"긴 아래꼬리를 남기며 저점 매수세를 시사":"뚜렷한 특이 캔들 패턴 없이 마감"}했습니다. 프라이스 액션 관점에서는 지지/저항 돌파 여부와 캔들 형태를 종합해 ${signal} 판단을 내립니다.`;
-    const stopLoss = fp(ind.support*0.98);
-    const targetPrice = ind.breakoutUp ? fp(ind.resistance*1.03) : fp(ind.resistance);
+    const stopLossValue = ind.support*0.98;
+    const targetPriceValue = ind.breakoutUp ? ind.resistance*1.03 : ind.resistance;
+    const stopLoss = fp(stopLossValue);
+    const targetPrice = fp(targetPriceValue);
     const caution = "돌파 발생 직후에는 되돌림(가짜 돌파, 휩쏘)이 나올 수 있으니 종가 기준 확정 여부를 확인하세요.";
-    return { signal, reasons: reasons.slice(0,3), report, stopLoss, targetPrice, caution };
+    return { signal, reasons: reasons.slice(0,3), report, stopLoss, targetPrice, stopLossValue, targetPriceValue, caution };
   }
 
   function evaluateIndicator(ind){
@@ -962,10 +984,12 @@
 
     const signal = decide(score);
     const report = `이동평균선은 ${ind.maAlign==="golden"?"정배열 상태로 상승 추세를 뒷받침":ind.maAlign==="dead"?"역배열 상태로 하락 추세를 뒷받침":"뚜렷한 배열 없이 혼조세"}하고 있습니다. RSI는 ${ind.rsi!=null?ind.rsi.toFixed(1):"-"}로 ${ind.rsiState==="overbought"?"과매수":ind.rsiState==="oversold"?"과매도":"중립"} 구간에 있으며, MACD는 ${ind.macdCross==="golden"?"골든크로스가 발생해 매수 우위":ind.macdCross==="dead"?"데드크로스가 발생해 매도 우위":"특별한 크로스 없이 관망 국면"}로 판단됩니다. 보조지표 종합 관점에서 ${signal} 신호를 제시합니다.`;
-    const stopLoss = fp(ind.support*0.98);
-    const targetPrice = fp(ind.resistance);
+    const stopLossValue = ind.support*0.98;
+    const targetPriceValue = ind.resistance;
+    const stopLoss = fp(stopLossValue);
+    const targetPrice = fp(targetPriceValue);
     const caution = "보조지표는 후행성 지표이므로 급격한 변동 구간에서는 다이버전스(가격-지표 역행) 여부도 함께 확인하세요.";
-    return { signal, reasons: reasons.slice(0,3), report, stopLoss, targetPrice, caution };
+    return { signal, reasons: reasons.slice(0,3), report, stopLoss, targetPrice, stopLossValue, targetPriceValue, caution };
   }
 
   function evaluateVolume(ind){
@@ -986,10 +1010,12 @@
 
     const signal = decide(score);
     const report = `거래량 측면에서 ${ind.breakoutUp?(ind.volSpike?"거래량이 실린 상향 돌파가 확인되어 신뢰도가 높습니다":"거래량이 뒷받침되지 않은 돌파로 신뢰도가 낮습니다"):ind.breakoutDown?(ind.volSpike?"거래량이 실린 하향 이탈로 매도 압력이 강합니다":"거래량 없는 이탈로 되돌림 가능성이 있습니다"):"뚜렷한 돌파 없이 매물대 부근에서 공방 중입니다"}. 주요 매물대는 약 ${fp(ind.volNode)} 부근으로, 현재가는 이 구간 ${ind.last.c>=ind.volNode?"위":"아래"}에 위치합니다. 최근 거래량 추세는 ${ind.volumeTrendUp?"증가":ind.volumeTrendDown?"감소":"보합"} 흐름을 보이고 있어, 거래량 분석 관점에서 ${signal} 신호를 제시합니다.`;
-    const stopLoss = fp(Math.min(ind.support, ind.volNode)*0.98);
-    const targetPrice = fp(ind.resistance);
+    const stopLossValue = Math.min(ind.support, ind.volNode)*0.98;
+    const targetPriceValue = ind.resistance;
+    const stopLoss = fp(stopLossValue);
+    const targetPrice = fp(targetPriceValue);
     const caution = "거래량 지표는 세력 수급 추정치일 뿐 확정적 지표가 아니므로, 다른 지표와 함께 교차 확인하세요.";
-    return { signal, reasons: reasons.slice(0,3), report, stopLoss, targetPrice, caution };
+    return { signal, reasons: reasons.slice(0,3), report, stopLoss, targetPrice, stopLossValue, targetPriceValue, caution };
   }
 
   function evaluateAllInOne(ind){
@@ -1008,10 +1034,12 @@
     const conflict = new Set([pa.signal, ti.signal, vo.signal]).size > 1;
     const report = `프라이스 액션은 ${pa.signal}, 보조지표는 ${ti.signal}, 거래량 분석은 ${vo.signal} 신호를 각각 제시했습니다. ${conflict?"세 분석법 간 신호가 일부 엇갈리고 있어 보수적인 접근이 필요합니다.":"세 분석법이 동일한 방향성을 가리키고 있어 신뢰도가 높은 편입니다."} 종합적으로 판단할 때 현재가 ${formatPrice(ind.last.c, ind.currency)} 기준 최종 신호는 ${signal}입니다.`;
     const fp = v=>formatPrice(v, ind.currency);
-    const stopLoss = fp(Math.min(ind.support, ind.volNode)*0.98);
-    const targetPrice = fp(ind.resistance*1.02);
+    const stopLossValue = Math.min(ind.support, ind.volNode)*0.98;
+    const targetPriceValue = ind.resistance*1.02;
+    const stopLoss = fp(stopLossValue);
+    const targetPrice = fp(targetPriceValue);
     const caution = conflict ? "세 분석법의 신호가 엇갈리므로 분할 매매 또는 추가 확인 후 진입을 권장합니다." : "세 분석법이 같은 방향을 가리키더라도 시장 전체 상황(지수, 뉴스)을 함께 점검하세요.";
-    return { signal, reasons, report, stopLoss, targetPrice, caution };
+    return { signal, reasons, report, stopLoss, targetPrice, stopLossValue, targetPriceValue, caution };
   }
 
   const EVALUATORS = {
@@ -1103,6 +1131,48 @@
     return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
   }
 
+  // ================== USD → KRW 환율 자동 갱신 ==================
+  function stopFxPolling(){
+    if(fxTimer){ clearInterval(fxTimer); fxTimer = null; }
+  }
+
+  function updateFxDisplay(){
+    const fxRateText = document.getElementById("fxRateText");
+    const quotePriceFx = document.getElementById("quotePriceFx");
+    const stopLossFx = document.getElementById("stopLossFx");
+    const targetPriceFx = document.getElementById("targetPriceFx");
+
+    const active = lastInd && lastInd.currency === "USD" && currentFxRate != null;
+    fxRateText.hidden = !active;
+    if(!active){
+      quotePriceFx.textContent = "";
+      stopLossFx.textContent = "";
+      targetPriceFx.textContent = "";
+      return;
+    }
+
+    fxRateText.textContent = `현재 환율: 1 USD = ${currentFxRate.toLocaleString("ko-KR",{maximumFractionDigits:1})}원 (${FX_POLL_MS/1000}초마다 자동 갱신)`;
+    const toKrw = usd => "(약 " + Math.round(usd*currentFxRate).toLocaleString("ko-KR") + "원)";
+    quotePriceFx.textContent = toKrw(lastInd.last.c);
+    if(lastOut){
+      if(lastOut.stopLossValue!=null) stopLossFx.textContent = toKrw(lastOut.stopLossValue);
+      if(lastOut.targetPriceValue!=null) targetPriceFx.textContent = toKrw(lastOut.targetPriceValue);
+    }
+  }
+
+  async function refreshFxRate(){
+    try{
+      currentFxRate = await fetchUsdKrwRate();
+      updateFxDisplay();
+    }catch(e){ /* 일시적 실패 시 마지막으로 성공한 환율을 그대로 유지 */ }
+  }
+
+  function startFxPolling(){
+    stopFxPolling();
+    refreshFxRate();
+    fxTimer = setInterval(refreshFxRate, FX_POLL_MS);
+  }
+
   function renderResult(ind, out){
     errorWrap.hidden = true;
     placeholder.hidden = true;
@@ -1149,6 +1219,8 @@
     document.getElementById("targetPriceText").textContent = out.targetPrice;
     document.getElementById("cautionText").textContent = "⚠ " + out.caution;
 
+    updateFxDisplay();
+
     resultWrap.hidden = false;
   }
 
@@ -1169,6 +1241,16 @@
       ind.includePrePost = requestedPrePost;
       lastInd = ind;
       const out = EVALUATORS[selectedMode](ind);
+      lastOut = out;
+
+      // 미국 주식(USD)일 때만 환율 자동 갱신 타이머를 가동하고,
+      // 한국 주식(KRW) 등 그 외에는 불필요한 폴링을 중단한다.
+      if(ind.currency === "USD"){
+        startFxPolling();
+      } else {
+        stopFxPolling();
+      }
+
       renderResult(ind, out);
     }catch(err){
       showError(err && err.message ? err.message : String(err));
