@@ -352,6 +352,7 @@
   const errorWrap = document.getElementById("errorWrap");
   const errorBox = document.getElementById("errorBox");
   const resultWrap = document.getElementById("resultWrap");
+  const ANALYZE_BTN_DEFAULT_TEXT = analyzeBtn.textContent;
 
   // ---------- mode cards ----------
   MODES.forEach(m=>{
@@ -371,30 +372,41 @@
   tickerInput.addEventListener("keydown", e=>{ if(e.key === "Enter") analyzeBtn.click(); });
 
   // ================== DATA FETCH (Yahoo Finance public chart API) ==================
-  async function fetchJson(url){
-    const res = await fetch(url);
-    if(!res.ok) throw new Error("HTTP " + res.status);
-    return res.json();
+  // 여러 무료 CORS 프록시를 순서대로 시도한다 (직접 호출 실패 시 자동 전환).
+  const CORS_PROXIES = [
+    (u)=> u,
+    (u)=> "https://corsproxy.io/?url=" + encodeURIComponent(u),
+    (u)=> "https://api.allorigins.win/raw?url=" + encodeURIComponent(u),
+    (u)=> "https://api.codetabs.com/v1/proxy?quest=" + encodeURIComponent(u)
+  ];
+
+  async function fetchJson(url, timeoutMs){
+    const controller = new AbortController();
+    const timer = setTimeout(()=>controller.abort(), timeoutMs || 10000);
+    try{
+      const res = await fetch(url, { signal: controller.signal });
+      if(!res.ok) throw new Error("HTTP " + res.status);
+      return await res.json();
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   async function fetchWithProxyFallback(targetUrl){
-    const attempts = [
-      targetUrl,
-      "https://api.allorigins.win/raw?url=" + encodeURIComponent(targetUrl)
-    ];
     let lastErr;
-    for(const url of attempts){
-      try{ return await fetchJson(url); }
-      catch(e){ lastErr = e; }
+    for(const buildUrl of CORS_PROXIES){
+      try{
+        return await fetchJson(buildUrl(targetUrl));
+      }catch(e){ lastErr = e; }
     }
-    throw lastErr || new Error("네트워크 요청에 실패했습니다.");
+    throw lastErr || new Error("모든 프록시 요청이 실패했습니다.");
   }
 
   async function fetchYahooChart(symbol){
     const target = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1y&interval=1d`;
     const json = await fetchWithProxyFallback(target);
     const result = json && json.chart && json.chart.result && json.chart.result[0];
-    if(!result) throw new Error("데이터 없음");
+    if(!result) throw new Error("데이터 없음 (심볼: " + symbol + ")");
     const ts = result.timestamp;
     const q = result.indicators.quote[0];
     const currency = (result.meta && result.meta.currency) || "USD";
@@ -403,7 +415,7 @@
       if(q.open[i]==null || q.high[i]==null || q.low[i]==null || q.close[i]==null) continue;
       candles.push({ date:new Date(ts[i]*1000), o:q.open[i], h:q.high[i], l:q.low[i], c:q.close[i], v:q.volume[i]||0 });
     }
-    if(candles.length < 30) throw new Error("충분한 데이터가 없습니다.");
+    if(candles.length < 30) throw new Error("충분한 데이터가 없습니다 (심볼: " + symbol + ")");
     return { symbol, currency, candles };
   }
 
@@ -434,7 +446,11 @@
       try{ return await fetchYahooChart(sym); }
       catch(e){ lastErr = e; }
     }
-    throw new Error("'" + raw + "' 종목의 시세 데이터를 가져오지 못했습니다. 티커/종목코드를 확인하거나 잠시 후 다시 시도해주세요.");
+    throw new Error(
+      "데이터를 불러오지 못했습니다. (원인: CORS 차단 또는 잘못된 종목 코드)\n" +
+      `입력값: ${raw} (시도한 심볼: ${candidates.join(", ")})` +
+      (lastErr ? `\n세부 오류: ${lastErr.message}` : "")
+    );
   }
 
   // ================== INDICATOR MATH ==================
@@ -776,6 +792,7 @@
   // ================== UI STATE ==================
   function setLoading(isLoading){
     analyzeBtn.disabled = isLoading;
+    analyzeBtn.textContent = isLoading ? "⏳ 데이터 불러오는 중..." : ANALYZE_BTN_DEFAULT_TEXT;
     placeholder.hidden = true;
     errorWrap.hidden = true;
     if(isLoading){ resultWrap.hidden = true; loadingWrap.hidden = false; }
