@@ -419,27 +419,76 @@
     return { symbol, currency, candles };
   }
 
-  async function searchSymbol(query){
-    const target = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&quotesCount=5&newsCount=0`;
-    try{
-      const json = await fetchWithProxyFallback(target);
-      const quotes = json.quotes || [];
-      const eq = quotes.find(q=>q.quoteType === "EQUITY") || quotes[0];
-      return eq ? eq.symbol : null;
-    }catch(e){ return null; }
+  // 자주 검색되는 국내 대형주는 로컬 사전으로 즉시 매핑해 검색 API 불안정성의 영향을 줄인다.
+  // (키는 공백 제거 + 소문자 정규화된 형태로 저장)
+  const KR_NAME_MAP = {
+    "삼성전자":"005930", "삼성전자우":"005935", "sk하이닉스":"000660", "에스케이하이닉스":"000660",
+    "카카오":"035720", "카카오뱅크":"323410", "카카오페이":"377300",
+    "네이버":"035420", "naver":"035420",
+    "현대차":"005380", "현대자동차":"005380", "기아":"000270", "기아차":"000270",
+    "lg에너지솔루션":"373220", "lg화학":"051910", "lg전자":"066570", "lg":"003550", "lg생활건강":"051900",
+    "삼성바이오로직스":"207940", "셀트리온":"068270", "posco홀딩스":"005490", "포스코":"005490", "포스코홀딩스":"005490",
+    "삼성sdi":"006400", "현대모비스":"012330",
+    "kb금융":"105560", "신한지주":"055550", "하나금융지주":"086790", "우리금융지주":"316140",
+    "sk이노베이션":"096770", "sk텔레콤":"017670", "sk":"034730", "kt":"030200", "kt&g":"033780",
+    "크래프톤":"259960", "에코프로":"086520", "에코프로비엠":"247540", "포스코퓨처엠":"003670",
+    "한화솔루션":"009830", "삼성물산":"028260", "두산에너빌리티":"034020", "hmm":"011200",
+    "삼성생명":"032830", "메리츠금융지주":"138040", "s-oil":"010950", "에스오일":"010950",
+    "한국전력":"015760", "삼성전기":"009150", "lig넥스원":"079550", "코스피":"005930"
+  };
+  function normalizeKr(s){ return s.replace(/\s+/g,"").toLowerCase(); }
+  function lookupKoreanName(raw){
+    const norm = normalizeKr(raw);
+    if(KR_NAME_MAP[norm]) return KR_NAME_MAP[norm];
+    for(const key in KR_NAME_MAP){
+      if(norm.length>=2 && (norm.includes(key) || key.includes(norm))) return KR_NAME_MAP[key];
+    }
+    return null;
   }
+
+  // Yahoo Finance 검색(오토컴플리트) API를 query1/query2 두 호스트로 조회하고,
+  // EQUITY 타입 위주로 최대 3개까지 후보 심볼을 반환한다.
+  async function searchSymbolCandidates(query){
+    const isKorean = /[가-힣]/.test(query);
+    const hosts = [
+      "https://query1.finance.yahoo.com/v1/finance/search",
+      "https://query2.finance.yahoo.com/v1/finance/search"
+    ];
+    const collected = [];
+    for(const host of hosts){
+      const params = `?q=${encodeURIComponent(query)}&quotesCount=8&newsCount=0` + (isKorean ? "&lang=ko-KR&region=KR" : "");
+      try{
+        const json = await fetchWithProxyFallback(host + params);
+        const quotes = (json && json.quotes) || [];
+        quotes.forEach(q=>{ if(q && q.symbol) collected.push(q); });
+      }catch(e){ /* 다음 호스트로 계속 시도 */ }
+      if(collected.length) break;
+    }
+    const equities = collected.filter(q=>q.quoteType === "EQUITY");
+    const ordered = equities.length ? equities : collected;
+    const symbols = [];
+    ordered.forEach(q=>{ if(!symbols.includes(q.symbol)) symbols.push(q.symbol); });
+    return symbols.slice(0,3);
+  }
+
+  const NOT_FOUND_MSG = "존재하지 않는 종목이거나 데이터를 불러올 수 없습니다. 종목 코드(6자리)나 정확한 영문 티커를 입력해 보세요.";
 
   async function resolveAndFetch(rawInput){
     const raw = rawInput.trim();
     let candidates;
     if(/^\d{6}$/.test(raw)){
       candidates = [raw + ".KS", raw + ".KQ"];
-    } else if(/^[A-Za-z0-9.\-]+$/.test(raw)){
-      candidates = [raw.toUpperCase()];
     } else {
-      const resolved = await searchSymbol(raw);
-      if(!resolved) throw new Error("종목을 찾을 수 없습니다. 티커(예: AAPL) 또는 6자리 종목코드(예: 005930)로 입력해보세요.");
-      candidates = [resolved];
+      const localCode = lookupKoreanName(raw);
+      if(localCode){
+        candidates = [localCode + ".KS", localCode + ".KQ"];
+      } else if(/^[A-Za-z][A-Za-z0-9.\-]*$/.test(raw)){
+        candidates = [raw.toUpperCase()];
+      } else {
+        const found = await searchSymbolCandidates(raw);
+        if(!found.length) throw new Error(NOT_FOUND_MSG);
+        candidates = found;
+      }
     }
     let lastErr;
     for(const sym of candidates){
@@ -447,8 +496,8 @@
       catch(e){ lastErr = e; }
     }
     throw new Error(
-      "데이터를 불러오지 못했습니다. (원인: CORS 차단 또는 잘못된 종목 코드)\n" +
-      `입력값: ${raw} (시도한 심볼: ${candidates.join(", ")})` +
+      NOT_FOUND_MSG + "\n" +
+      `(입력값: ${raw}, 시도한 심볼: ${candidates.join(", ")})` +
       (lastErr ? `\n세부 오류: ${lastErr.message}` : "")
     );
   }
