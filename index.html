@@ -292,6 +292,7 @@
   .result-card h3{font-size:13px;font-weight:700;margin-bottom:10px;color:var(--text);}
 
   .quote-header{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
+  .yahoo-link-btn{display:inline-block;margin-left:auto;text-decoration:none;}
   .quote-symbol{font-size:15px;font-weight:800;}
   .quote-price{font-size:18px;font-weight:800;}
   .quote-change{font-size:13px;font-weight:700;}
@@ -449,6 +450,7 @@
           <span class="quote-symbol" id="quoteSymbol"></span>
           <span class="quote-price" id="quotePrice"></span>
           <span class="quote-change" id="quoteChange"></span>
+          <a class="btn-primary-outline yahoo-link-btn" id="yahooLink" href="#" target="_blank" rel="noopener noreferrer" hidden>🔗 Yahoo Finance에서 보기</a>
         </div>
         <div class="meta-row" id="dataMetaText"></div>
         <div class="fallback-banner" id="fallbackBanner" hidden></div>
@@ -680,9 +682,12 @@
   async function resolveCandidates(rawInput){
     const raw = rawInput.trim();
     if(/^\d{6}$/.test(raw)) return { raw, candidates:[raw + ".KS", raw + ".KQ"] };
+    // 순수 영문 티커(AAPL, TSLA, SKHY 등)는 한글 종목명 매칭을 거치지 않고
+    // 입력값 그대로 해외 심볼로 사용한다. ("SKHY"가 한글 사전의 "sk" 키에
+    // 부분일치되어 한국 SK(034730)로 잘못 조회되던 문제를 방지)
+    if(/^[A-Za-z][A-Za-z0-9.\-]*$/.test(raw)) return { raw, candidates:[raw.toUpperCase()] };
     const localCode = lookupKoreanName(raw);
     if(localCode) return { raw, candidates:[localCode + ".KS", localCode + ".KQ"] };
-    if(/^[A-Za-z][A-Za-z0-9.\-]*$/.test(raw)) return { raw, candidates:[raw.toUpperCase()] };
     const found = await searchSymbolCandidates(raw);
     if(!found.length) throw new Error(NOT_FOUND_MSG);
     return { raw, candidates: found };
@@ -1109,6 +1114,10 @@
     const changeEl = document.getElementById("quoteChange");
     changeEl.textContent = `${formatPrice(change, ind.currency)} (${formatPercent(changePct)})`;
     changeEl.className = "quote-change " + (change>=0 ? "up" : "down");
+
+    const yahooLink = document.getElementById("yahooLink");
+    yahooLink.href = `https://finance.yahoo.com/quote/${encodeURIComponent(ind.symbol)}`;
+    yahooLink.hidden = false;
 
     document.getElementById("dataMetaText").textContent =
       `데이터 주기: ${INTERVAL_LABEL[ind.interval] || ind.interval}` +
