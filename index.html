@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AI Chart Mode Trader</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <style>
   :root{
     --bg:#0d1117;
@@ -48,18 +49,7 @@
   .header-left{display:flex;align-items:center;gap:10px;}
   .header-left .logo{font-size:24px;}
   .header-left h1{font-size:18px;font-weight:700;letter-spacing:-0.2px;}
-  .btn-secondary{
-    background:var(--bg-elevated);
-    color:var(--text);
-    border:1px solid var(--border);
-    padding:8px 14px;
-    border-radius:8px;
-    cursor:pointer;
-    font-size:13px;
-    font-weight:600;
-    transition:border-color .15s;
-  }
-  .btn-secondary:hover{border-color:var(--border-hover);}
+  .header-badge{font-size:11.5px;color:var(--text-secondary);background:var(--bg-elevated);border:1px solid var(--border);padding:6px 12px;border-radius:20px;}
 
   /* Layout */
   .main-container{
@@ -89,34 +79,18 @@
   }
   .panel h2:first-child{margin-top:0;}
 
-  /* Tabs */
-  .tabs{display:flex;gap:6px;background:var(--bg-elevated);padding:4px;border-radius:8px;}
-  .tab-btn{
+  .ticker-input-row{display:flex;gap:8px;}
+  .ticker-input-row input{
     flex:1;
-    padding:8px 10px;
-    background:transparent;
-    border:none;
-    color:var(--text-secondary);
-    font-size:12.5px;
-    font-weight:600;
-    border-radius:6px;
-    cursor:pointer;
-    transition:all .15s;
+    background:var(--bg-elevated);
+    border:1px solid var(--border);
+    color:var(--text);
+    padding:10px 12px;
+    border-radius:7px;
+    font-size:13.5px;
+    outline:none;
   }
-  .tab-btn.active{background:var(--accent-dim);color:var(--accent);}
-  .tab-content{margin-top:12px;}
-
-  .dropzone{
-    border:1.5px dashed var(--border);
-    border-radius:8px;
-    padding:22px 14px;
-    text-align:center;
-    cursor:pointer;
-    transition:border-color .15s,background .15s;
-    position:relative;
-  }
-  .dropzone.dragover{border-color:var(--accent);background:var(--accent-dim);}
-  .dropzone p{font-size:12.5px;color:var(--text-secondary);margin-bottom:10px;}
+  .ticker-input-row input:focus{border-color:var(--accent);}
   .btn-primary-outline{
     background:transparent;
     border:1px solid var(--accent);
@@ -126,23 +100,9 @@
     font-size:12.5px;
     font-weight:600;
     cursor:pointer;
+    white-space:nowrap;
   }
   .btn-primary-outline:hover{background:var(--accent-dim);}
-  .image-preview{max-width:100%;max-height:200px;border-radius:6px;margin-top:10px;display:block;margin-left:auto;margin-right:auto;}
-  .file-name{font-size:11.5px;color:var(--text-secondary);margin-top:8px;}
-
-  .ticker-input-row{display:flex;gap:8px;}
-  .ticker-input-row input{
-    flex:1;
-    background:var(--bg-elevated);
-    border:1px solid var(--border);
-    color:var(--text);
-    padding:9px 12px;
-    border-radius:7px;
-    font-size:13px;
-    outline:none;
-  }
-  .ticker-input-row input:focus{border-color:var(--accent);}
   .hint-text{font-size:11.5px;color:var(--text-secondary);margin-top:8px;line-height:1.5;}
 
   /* Mode cards */
@@ -228,6 +188,14 @@
   }
   .result-card h3{font-size:13px;font-weight:700;margin-bottom:10px;color:var(--text);}
 
+  .quote-header{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:12px;}
+  .quote-symbol{font-size:15px;font-weight:800;}
+  .quote-price{font-size:18px;font-weight:800;}
+  .quote-change{font-size:13px;font-weight:700;}
+  .quote-change.up{color:var(--buy);}
+  .quote-change.down{color:var(--sell);}
+  canvas{max-width:100%;}
+
   .signal-card{
     text-align:center;
     padding:26px 16px;
@@ -245,7 +213,7 @@
   .signal-badge.HOLD{color:var(--hold);background:var(--hold-bg);}
   .result-mode-name{margin-top:10px;font-size:12.5px;color:var(--text-secondary);font-weight:600;}
 
-  .checklist{list-style:none;display:flex;flex-direction:column;gap:8px;}
+  .checklist{list-style:none;display:flex;flex-direction:column;gap:8px;padding-left:0;}
   .checklist li{
     font-size:13px;
     display:flex;
@@ -276,46 +244,6 @@
     border-radius:6px;
   }
   .disclaimer{font-size:10.5px;color:var(--text-secondary);text-align:center;margin-top:4px;}
-
-  /* Modal */
-  .modal-overlay{
-    position:fixed;inset:0;
-    background:rgba(0,0,0,.6);
-    display:flex;align-items:center;justify-content:center;
-    z-index:100;
-  }
-  .modal{
-    background:var(--bg-panel);
-    border:1px solid var(--border);
-    border-radius:var(--radius);
-    padding:22px;
-    width:360px;
-    max-width:90vw;
-  }
-  .modal h3{font-size:15px;font-weight:700;margin-bottom:16px;}
-  .modal label{font-size:12px;color:var(--text-secondary);display:block;margin-bottom:6px;margin-top:12px;}
-  .modal select,.modal input{
-    width:100%;
-    background:var(--bg-elevated);
-    border:1px solid var(--border);
-    color:var(--text);
-    padding:9px 10px;
-    border-radius:7px;
-    font-size:13px;
-    outline:none;
-  }
-  .modal select:focus,.modal input:focus{border-color:var(--accent);}
-  .modal-actions{display:flex;gap:8px;margin-top:18px;}
-  .modal-actions button{flex:1;padding:10px;}
-  .btn-primary{
-    background:var(--accent);
-    color:#0d1117;
-    border:none;
-    border-radius:8px;
-    font-weight:700;
-    cursor:pointer;
-  }
-  .api-status{font-size:11.5px;color:var(--buy);margin-top:10px;}
 </style>
 </head>
 <body>
@@ -326,36 +254,19 @@
     <h1>AI Chart Mode Trader</h1>
   </div>
   <div class="header-right">
-    <button class="btn-secondary" id="apiKeyBtn">🔑 API Key 설정</button>
+    <span class="header-badge">무료 공개 시세 데이터 기반 · API Key 불필요</span>
   </div>
 </header>
 
 <main class="main-container">
   <!-- LEFT: input -->
   <section class="panel">
-    <h2>1. 분석 데이터 입력</h2>
-    <div class="tabs">
-      <button class="tab-btn active" data-tab="image">차트 이미지 업로드</button>
-      <button class="tab-btn" data-tab="ticker">종목명/티커 입력</button>
+    <h2>1. 종목 입력</h2>
+    <div class="ticker-input-row">
+      <input type="text" id="tickerInput" placeholder="예: AAPL, TSLA, 삼성전자, 005930">
+      <button type="button" class="btn-primary-outline" id="tickerSearchBtn">조회</button>
     </div>
-
-    <div class="tab-content" id="tab-image">
-      <div class="dropzone" id="dropzone">
-        <input type="file" id="fileInput" accept="image/*" hidden>
-        <p>여기로 차트 이미지를 드래그하거나</p>
-        <button type="button" class="btn-primary-outline" id="fileSelectBtn">파일 선택</button>
-        <div class="file-name" id="fileName"></div>
-        <img id="imagePreview" class="image-preview" hidden>
-      </div>
-    </div>
-
-    <div class="tab-content" id="tab-ticker" hidden>
-      <div class="ticker-input-row">
-        <input type="text" id="tickerInput" placeholder="예: AAPL, 삼성전자, 005930">
-        <button type="button" class="btn-primary-outline" id="tickerSearchBtn">검색</button>
-      </div>
-      <p class="hint-text">⚠ 실시간 시세 데이터는 연동되어 있지 않아, 티커만 입력하면 AI의 일반 지식 기반 참고용 분석만 제공됩니다. 정확한 차트 해석이 필요하면 이미지 업로드를 권장합니다.</p>
-    </div>
+    <p class="hint-text">해외 종목은 티커(AAPL, TSLA 등), 국내 종목은 6자리 종목코드(005930) 또는 회사명을 입력하세요. Yahoo Finance 공개 차트 데이터를 사용하며, 비공식 API 특성상 일시적으로 조회가 지연되거나 실패할 수 있습니다.</p>
 
     <h2>2. 분석 모드 선택 (Select Game Mode)</h2>
     <div class="mode-grid" id="modeGrid"></div>
@@ -365,35 +276,49 @@
 
   <!-- RIGHT: result -->
   <section class="panel right-panel">
-    <div class="placeholder" id="placeholder">좌측에서 데이터를 입력하고 모드를 선택한 뒤 분석을 시작하세요.</div>
+    <div class="placeholder" id="placeholder">좌측에서 종목을 입력하고 모드를 선택한 뒤 분석을 시작하세요.</div>
     <div class="loading-wrap" id="loadingWrap" hidden>
       <div class="spinner"></div>
-      <div id="loadingText">AI가 차트를 분석하고 있습니다...</div>
+      <div id="loadingText">시세 데이터를 조회하고 분석하는 중입니다...</div>
     </div>
     <div id="errorWrap" hidden><div class="error-box" id="errorBox"></div></div>
-    <div id="resultWrap" hidden></div>
+
+    <div id="resultWrap" hidden>
+      <div class="result-card">
+        <div class="quote-header">
+          <span class="quote-symbol" id="quoteSymbol"></span>
+          <span class="quote-price" id="quotePrice"></span>
+          <span class="quote-change" id="quoteChange"></span>
+        </div>
+        <canvas id="priceChartCanvas" height="170"></canvas>
+        <canvas id="volChartCanvas" height="70" style="margin-top:14px;"></canvas>
+      </div>
+
+      <div class="result-card signal-card">
+        <div class="signal-badge" id="signalBadge"></div>
+        <div class="result-mode-name" id="resultModeName"></div>
+      </div>
+
+      <div class="result-card">
+        <h3>핵심 판단 근거 3가지</h3>
+        <ul class="checklist" id="keyReasonsList"></ul>
+      </div>
+
+      <div class="result-card">
+        <h3>상세 분석 리포트</h3>
+        <p class="report-text" id="reportText"></p>
+      </div>
+
+      <div class="result-card">
+        <h3>리스크 관리</h3>
+        <div class="risk-row"><span>손절가 (Stop Loss)</span><strong id="stopLossText"></strong></div>
+        <div class="risk-row"><span>목표가 (Target Price)</span><strong id="targetPriceText"></strong></div>
+        <p class="caution-text" id="cautionText"></p>
+      </div>
+      <p class="disclaimer">※ 본 분석은 공개 시세 데이터를 기반으로 자동 계산된 참고 자료이며 투자 자문이 아닙니다. 투자 판단과 책임은 본인에게 있습니다.</p>
+    </div>
   </section>
 </main>
-
-<!-- API Key Modal -->
-<div class="modal-overlay" id="apiModalOverlay" hidden>
-  <div class="modal">
-    <h3>API Key 설정</h3>
-    <label>Provider</label>
-    <select id="providerSelect">
-      <option value="openai">OpenAI GPT-4o</option>
-      <option value="claude">Claude Vision (Anthropic)</option>
-    </select>
-    <label>API Key</label>
-    <input type="password" id="apiKeyInput" placeholder="sk-...">
-    <p class="hint-text">API 키는 브라우저 localStorage에만 저장되며, 분석 요청 시 선택한 Provider(OpenAI/Anthropic) 서버로 직접 전송됩니다. 이 키는 외부 서버로 별도 수집되지 않습니다.</p>
-    <div id="apiStatus" class="api-status" hidden>✔ 저장된 API Key가 있습니다.</div>
-    <div class="modal-actions">
-      <button class="btn-primary" id="apiKeySaveBtn">저장</button>
-      <button class="btn-secondary" id="apiKeyCancelBtn">닫기</button>
-    </div>
-  </div>
-</div>
 
 <script>
 (function(){
@@ -405,63 +330,20 @@
     { id:"volume",       icon:"📈", title:"거래량 분석 모드",   desc:"매물대 & 세력 수급" },
     { id:"all_in_one",   icon:"👑", title:"실전 종합 모드",     desc:"3대 분석법 합체" }
   ];
-
-  const MODE_PROMPTS = {
-    price_action: `당신은 프라이스 액션(Price Action) 전문 트레이더입니다. 아래 4가지 기준만을 근거로 분석하세요.
-1) 지지선과 저항선의 위치 및 유효성
-2) 박스권(횡보 구간) 형성 여부
-3) 캔들 패턴 (위꼬리/아래꼬리, 존 윅 캔들 등 특이 캔들 신호)
-4) 돌파(Breakout) 발생 여부와 신뢰도
-이 4가지 관점만으로 최종 매매 신호(BUY/SELL/HOLD)를 결정하세요.`,
-    indicator: `당신은 보조지표(Technical Indicator) 전문 트레이더입니다. 아래 3가지 기준만을 근거로 분석하세요.
-1) 이동평균선(MA)의 배열 상태 (정배열/역배열, 골든/데드크로스 여부)
-2) RSI 과매수(70 이상)/과매도(30 이하) 상태
-3) MACD 골든크로스/데드크로스 여부와 히스토그램 흐름
-이 3가지 관점만으로 최종 매매 신호(BUY/SELL/HOLD)를 결정하세요.`,
-    volume: `당신은 거래량 분석(Volume Profile) 전문 트레이더입니다. 아래 3가지 기준만을 근거로 분석하세요.
-1) 거래량을 동반한 돌파인지 여부 (거래량 실린 진짜 돌파 vs 거래량 없는 가짜 돌파)
-2) 주요 매물대(거래량 집중 가격대)의 지지/저항 작용 여부
-3) 최근 거래량 증감 추세로 판단한 매수/매도 세력의 수급 상황
-이 3가지 관점만으로 최종 매매 신호(BUY/SELL/HOLD)를 결정하세요.`,
-    all_in_one: `당신은 실전 종합 분석 전문 트레이더입니다. 아래 3대 분석법을 모두 종합하여 최종 판단을 내리세요.
-1) 프라이스 액션 (지지/저항, 캔들 패턴, 돌파 여부)
-2) 보조지표 (이동평균선, RSI, MACD)
-3) 거래량 (매물대, 수급 상황)
-세 관점 중 서로 상충되는 신호가 있다면 리포트에 명시하고, 종합적으로 가장 타당한 최종 신호(BUY/SELL/HOLD)를 도출하세요.`
-  };
-
   const MODE_TITLE = {
     price_action: "🎯 프라이스 액션 모드",
     indicator: "📊 보조지표 모드",
     volume: "📈 거래량 분석 모드",
     all_in_one: "👑 실전 종합 모드"
   };
+  const DISPLAY_LEN = 90;
 
-  const JSON_INSTRUCTION = `
-
-반드시 아래 JSON 형식만 출력하세요. 다른 설명, 마크다운, 코드블록 없이 순수 JSON 객체 하나만 반환해야 합니다.
-{
-  "signal": "BUY 또는 SELL 또는 HOLD 중 하나",
-  "keyReasons": ["핵심 판단 근거 1", "핵심 판단 근거 2", "핵심 판단 근거 3"],
-  "report": "선택된 분석법 관점에서의 상세 차트 해석 (한국어, 4~7문장)",
-  "stopLoss": "권장 손절가 또는 손절 기준",
-  "targetPrice": "권장 목표가 또는 목표 기준",
-  "caution": "주의사항 한 줄 요약"
-}`;
-
-  // ---------- state ----------
   let selectedMode = null;
-  let activeTab = "image";
-  let imageBase64 = null;
+  let priceChart = null, volChart = null;
 
   // ---------- elements ----------
   const modeGrid = document.getElementById("modeGrid");
   const analyzeBtn = document.getElementById("analyzeBtn");
-  const dropzone = document.getElementById("dropzone");
-  const fileInput = document.getElementById("fileInput");
-  const fileSelectBtn = document.getElementById("fileSelectBtn");
-  const fileName = document.getElementById("fileName");
-  const imagePreview = document.getElementById("imagePreview");
   const tickerInput = document.getElementById("tickerInput");
   const tickerSearchBtn = document.getElementById("tickerSearchBtn");
 
@@ -470,14 +352,6 @@
   const errorWrap = document.getElementById("errorWrap");
   const errorBox = document.getElementById("errorBox");
   const resultWrap = document.getElementById("resultWrap");
-
-  const apiKeyBtn = document.getElementById("apiKeyBtn");
-  const apiModalOverlay = document.getElementById("apiModalOverlay");
-  const providerSelect = document.getElementById("providerSelect");
-  const apiKeyInput = document.getElementById("apiKeyInput");
-  const apiStatus = document.getElementById("apiStatus");
-  const apiKeySaveBtn = document.getElementById("apiKeySaveBtn");
-  const apiKeyCancelBtn = document.getElementById("apiKeyCancelBtn");
 
   // ---------- mode cards ----------
   MODES.forEach(m=>{
@@ -493,275 +367,477 @@
     modeGrid.appendChild(card);
   });
 
-  // ---------- tabs ----------
-  document.querySelectorAll(".tab-btn").forEach(btn=>{
-    btn.addEventListener("click", ()=>{
-      document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
-      btn.classList.add("active");
-      activeTab = btn.dataset.tab;
-      document.getElementById("tab-image").hidden = activeTab !== "image";
-      document.getElementById("tab-ticker").hidden = activeTab !== "ticker";
-    });
-  });
+  tickerSearchBtn.addEventListener("click", ()=> tickerInput.focus());
+  tickerInput.addEventListener("keydown", e=>{ if(e.key === "Enter") analyzeBtn.click(); });
 
-  // ---------- image upload ----------
-  fileSelectBtn.addEventListener("click", (e)=>{ e.stopPropagation(); fileInput.click(); });
-  dropzone.addEventListener("click", ()=> fileInput.click());
-  fileInput.addEventListener("change", e=>{
-    if(e.target.files[0]) handleFile(e.target.files[0]);
-  });
-  ["dragenter","dragover"].forEach(evt=>{
-    dropzone.addEventListener(evt, e=>{ e.preventDefault(); dropzone.classList.add("dragover"); });
-  });
-  ["dragleave","drop"].forEach(evt=>{
-    dropzone.addEventListener(evt, e=>{ e.preventDefault(); dropzone.classList.remove("dragover"); });
-  });
-  dropzone.addEventListener("drop", e=>{
-    const f = e.dataTransfer.files[0];
-    if(f) handleFile(f);
-  });
-
-  function handleFile(file){
-    if(!file.type.startsWith("image/")){
-      alert("이미지 파일만 업로드할 수 있습니다.");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = ()=>{
-      imageBase64 = reader.result;
-      imagePreview.src = imageBase64;
-      imagePreview.hidden = false;
-      fileName.textContent = file.name;
-    };
-    reader.readAsDataURL(file);
+  // ================== DATA FETCH (Yahoo Finance public chart API) ==================
+  async function fetchJson(url){
+    const res = await fetch(url);
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    return res.json();
   }
 
-  tickerSearchBtn.addEventListener("click", ()=>{
-    // just a visual affordance; actual value read from input on analyze
-    tickerInput.focus();
-  });
-
-  // ---------- API key modal ----------
-  function loadApiConfig(){
-    return {
-      provider: localStorage.getItem("act_provider") || "openai",
-      key: localStorage.getItem("act_apikey_" + (localStorage.getItem("act_provider") || "openai")) || ""
-    };
+  async function fetchWithProxyFallback(targetUrl){
+    const attempts = [
+      targetUrl,
+      "https://api.allorigins.win/raw?url=" + encodeURIComponent(targetUrl)
+    ];
+    let lastErr;
+    for(const url of attempts){
+      try{ return await fetchJson(url); }
+      catch(e){ lastErr = e; }
+    }
+    throw lastErr || new Error("네트워크 요청에 실패했습니다.");
   }
 
-  apiKeyBtn.addEventListener("click", ()=>{
-    const cfg = loadApiConfig();
-    providerSelect.value = cfg.provider;
-    const savedKey = localStorage.getItem("act_apikey_" + cfg.provider) || "";
-    apiKeyInput.value = savedKey;
-    apiStatus.hidden = !savedKey;
-    apiModalOverlay.hidden = false;
-  });
-  apiKeyCancelBtn.addEventListener("click", ()=> apiModalOverlay.hidden = true );
-  apiModalOverlay.addEventListener("click", e=>{ if(e.target === apiModalOverlay) apiModalOverlay.hidden = true; });
-
-  providerSelect.addEventListener("change", ()=>{
-    const savedKey = localStorage.getItem("act_apikey_" + providerSelect.value) || "";
-    apiKeyInput.value = savedKey;
-    apiStatus.hidden = !savedKey;
-  });
-
-  apiKeySaveBtn.addEventListener("click", ()=>{
-    const provider = providerSelect.value;
-    const key = apiKeyInput.value.trim();
-    localStorage.setItem("act_provider", provider);
-    if(key) localStorage.setItem("act_apikey_" + provider, key);
-    apiModalOverlay.hidden = true;
-  });
-
-  // ---------- analyze ----------
-  analyzeBtn.addEventListener("click", async ()=>{
-    if(!selectedMode){
-      alert("분석 모드를 먼저 선택해주세요.");
-      return;
+  async function fetchYahooChart(symbol){
+    const target = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1y&interval=1d`;
+    const json = await fetchWithProxyFallback(target);
+    const result = json && json.chart && json.chart.result && json.chart.result[0];
+    if(!result) throw new Error("데이터 없음");
+    const ts = result.timestamp;
+    const q = result.indicators.quote[0];
+    const currency = (result.meta && result.meta.currency) || "USD";
+    const candles = [];
+    for(let i=0;i<ts.length;i++){
+      if(q.open[i]==null || q.high[i]==null || q.low[i]==null || q.close[i]==null) continue;
+      candles.push({ date:new Date(ts[i]*1000), o:q.open[i], h:q.high[i], l:q.low[i], c:q.close[i], v:q.volume[i]||0 });
     }
-    const cfg = loadApiConfig();
-    if(!cfg.key){
-      alert("먼저 우측 상단 'API Key 설정'에서 API Key를 입력해주세요.");
-      apiModalOverlay.hidden = false;
-      return;
-    }
+    if(candles.length < 30) throw new Error("충분한 데이터가 없습니다.");
+    return { symbol, currency, candles };
+  }
 
-    let userText;
-    let useImage = null;
-    if(activeTab === "image"){
-      if(!imageBase64){
-        alert("분석할 차트 이미지를 업로드해주세요.");
-        return;
-      }
-      useImage = imageBase64;
-      userText = "첨부된 차트 이미지를 분석해줘.";
+  async function searchSymbol(query){
+    const target = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&quotesCount=5&newsCount=0`;
+    try{
+      const json = await fetchWithProxyFallback(target);
+      const quotes = json.quotes || [];
+      const eq = quotes.find(q=>q.quoteType === "EQUITY") || quotes[0];
+      return eq ? eq.symbol : null;
+    }catch(e){ return null; }
+  }
+
+  async function resolveAndFetch(rawInput){
+    const raw = rawInput.trim();
+    let candidates;
+    if(/^\d{6}$/.test(raw)){
+      candidates = [raw + ".KS", raw + ".KQ"];
+    } else if(/^[A-Za-z0-9.\-]+$/.test(raw)){
+      candidates = [raw.toUpperCase()];
     } else {
-      const ticker = tickerInput.value.trim();
-      if(!ticker){
-        alert("종목명 또는 티커를 입력해주세요.");
-        return;
-      }
-      userText = `다음 종목에 대해 분석해줘: ${ticker}\n(참고: 실시간 차트 이미지가 제공되지 않았으므로, 일반적인 지식과 전형적인 패턴을 기반으로 참고용 분석을 제공하고, caution 필드에 실시간 데이터 기반이 아님을 반드시 명시하세요.)`;
+      const resolved = await searchSymbol(raw);
+      if(!resolved) throw new Error("종목을 찾을 수 없습니다. 티커(예: AAPL) 또는 6자리 종목코드(예: 005930)로 입력해보세요.");
+      candidates = [resolved];
     }
-
-    const systemPrompt = MODE_PROMPTS[selectedMode] + JSON_INSTRUCTION;
-
-    setLoading(true);
-    try{
-      let result;
-      if(cfg.provider === "openai"){
-        result = await callOpenAI(cfg.key, systemPrompt, userText, useImage);
-      } else {
-        result = await callClaude(cfg.key, systemPrompt, userText, useImage);
-      }
-      renderResult(result);
-    }catch(err){
-      showError(err.message || String(err));
-    }finally{
-      setLoading(false);
+    let lastErr;
+    for(const sym of candidates){
+      try{ return await fetchYahooChart(sym); }
+      catch(e){ lastErr = e; }
     }
-  });
+    throw new Error("'" + raw + "' 종목의 시세 데이터를 가져오지 못했습니다. 티커/종목코드를 확인하거나 잠시 후 다시 시도해주세요.");
+  }
 
-  async function callOpenAI(apiKey, systemPrompt, userText, imgB64){
-    const content = [{ type:"text", text:userText }];
-    if(imgB64) content.push({ type:"image_url", image_url:{ url: imgB64 } });
+  // ================== INDICATOR MATH ==================
+  function average(arr){ return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0; }
 
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        "Authorization":"Bearer " + apiKey
-      },
-      body: JSON.stringify({
-        model: "gpt-4o",
-        messages: [
-          { role:"system", content: systemPrompt },
-          { role:"user", content: content }
-        ],
-        response_format: { type:"json_object" },
-        temperature: 0.4,
-        max_tokens: 1200
-      })
+  function sma(values, period){
+    const out = new Array(values.length).fill(null);
+    let sum = 0;
+    for(let i=0;i<values.length;i++){
+      sum += values[i];
+      if(i >= period) sum -= values[i-period];
+      if(i >= period-1) out[i] = sum/period;
+    }
+    return out;
+  }
+
+  function emaFromIndex(values, period, startIdx){
+    const out = new Array(values.length).fill(null);
+    const firstIdx = (startIdx != null) ? startIdx : values.findIndex(v=>v!=null);
+    if(firstIdx === -1 || values.length - firstIdx < period) return out;
+    const k = 2/(period+1);
+    let sum = 0;
+    for(let j=firstIdx;j<firstIdx+period;j++) sum += values[j];
+    let prev = sum/period;
+    out[firstIdx+period-1] = prev;
+    for(let i=firstIdx+period;i<values.length;i++){
+      prev = values[i]*k + prev*(1-k);
+      out[i] = prev;
+    }
+    return out;
+  }
+
+  function computeRSI(values, period){
+    period = period || 14;
+    const out = new Array(values.length).fill(null);
+    if(values.length < period+1) return out;
+    let gains=0, losses=0;
+    for(let i=1;i<=period;i++){
+      const diff = values[i]-values[i-1];
+      if(diff>0) gains += diff; else losses -= diff;
+    }
+    let avgGain = gains/period, avgLoss = losses/period;
+    out[period] = avgLoss===0 ? 100 : 100-(100/(1+avgGain/avgLoss));
+    for(let i=period+1;i<values.length;i++){
+      const diff = values[i]-values[i-1];
+      const gain = diff>0?diff:0;
+      const loss = diff<0?-diff:0;
+      avgGain = (avgGain*(period-1)+gain)/period;
+      avgLoss = (avgLoss*(period-1)+loss)/period;
+      out[i] = avgLoss===0 ? 100 : 100-(100/(1+avgGain/avgLoss));
+    }
+    return out;
+  }
+
+  function computeMACD(values, fast, slow, signalPeriod){
+    fast = fast||12; slow = slow||26; signalPeriod = signalPeriod||9;
+    const emaFast = emaFromIndex(values, fast, 0);
+    const emaSlow = emaFromIndex(values, slow, 0);
+    const macdLine = values.map((_,i)=> (emaFast[i]!=null && emaSlow[i]!=null) ? emaFast[i]-emaSlow[i] : null);
+    const macdFirstIdx = macdLine.findIndex(v=>v!=null);
+    const signalLine = macdFirstIdx===-1 ? new Array(values.length).fill(null) : emaFromIndex(macdLine, signalPeriod, macdFirstIdx);
+    const hist = macdLine.map((v,i)=> (v!=null && signalLine[i]!=null) ? v-signalLine[i] : null);
+    return { macdLine, signalLine, hist };
+  }
+
+  function findSwingLevels(candles, window, lookback){
+    window = window||3; lookback = lookback||60;
+    const start = Math.max(0, candles.length-lookback);
+    const highs=[], lows=[];
+    for(let i=start+window;i<candles.length-window;i++){
+      const h=candles[i].h, l=candles[i].l;
+      let isHigh=true, isLow=true;
+      for(let k=i-window;k<=i+window;k++){
+        if(k===i) continue;
+        if(candles[k].h>h) isHigh=false;
+        if(candles[k].l<l) isLow=false;
+      }
+      if(isHigh) highs.push(h);
+      if(isLow) lows.push(l);
+    }
+    const lastClose = candles[candles.length-1].c;
+    const windowSlice = candles.slice(start);
+    const resistanceCandidates = highs.filter(h=>h>lastClose);
+    const supportCandidates = lows.filter(l=>l<lastClose);
+    const resistance = resistanceCandidates.length ? Math.min(...resistanceCandidates) : Math.max(...windowSlice.map(c=>c.h));
+    const support = supportCandidates.length ? Math.max(...supportCandidates) : Math.min(...windowSlice.map(c=>c.l));
+    return { support, resistance };
+  }
+
+  function findVolumeNode(candles, lookback, bins){
+    lookback = lookback||60; bins = bins||10;
+    const slice = candles.slice(-lookback);
+    const prices = slice.map(c=>c.c);
+    const min = Math.min(...prices), max = Math.max(...prices);
+    if(max === min) return min;
+    const binSize = (max-min)/bins;
+    const binVolumes = new Array(bins).fill(0);
+    slice.forEach(c=>{
+      let idx = Math.floor((c.c-min)/binSize);
+      if(idx>=bins) idx=bins-1; if(idx<0) idx=0;
+      binVolumes[idx] += c.v;
     });
-    if(!res.ok){
-      const errText = await safeErrText(res);
-      throw new Error(`OpenAI API 오류 (${res.status}): ${errText}`);
-    }
-    const data = await res.json();
-    return parseJsonLoose(data.choices[0].message.content);
+    let maxIdx=0;
+    for(let i=1;i<bins;i++) if(binVolumes[i]>binVolumes[maxIdx]) maxIdx=i;
+    return min + binSize*(maxIdx+0.5);
   }
 
-  async function callClaude(apiKey, systemPrompt, userText, imgB64){
-    const content = [];
-    if(imgB64){
-      const match = imgB64.match(/^data:(.*?);base64,(.*)$/);
-      if(match){
-        content.push({ type:"image", source:{ type:"base64", media_type: match[1], data: match[2] } });
-      }
-    }
-    content.push({ type:"text", text:userText });
+  function computeIndicators(data){
+    const candles = data.candles;
+    const closes = candles.map(c=>c.c);
+    const highs = candles.map(c=>c.h);
+    const lows = candles.map(c=>c.l);
+    const vols = candles.map(c=>c.v);
 
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        "x-api-key": apiKey,
-        "anthropic-version":"2023-06-01",
-        "anthropic-dangerous-direct-browser-access":"true"
+    const ma20Series = sma(closes, 20);
+    const ma60Series = sma(closes, 60);
+    const rsiSeries = computeRSI(closes, 14);
+    const macd = computeMACD(closes, 12, 26, 9);
+
+    const n = candles.length;
+    const last = candles[n-1];
+    const prevClose = candles[n-2] ? candles[n-2].c : last.c;
+
+    const ma20 = ma20Series[n-1], ma60 = ma60Series[n-1];
+    const maAlign = (ma20!=null && ma60!=null) ? (ma20>ma60 ? "golden" : (ma20<ma60 ? "dead" : "flat")) : "unknown";
+
+    const rsi = rsiSeries[n-1];
+    const rsiState = rsi==null ? "unknown" : (rsi>=70 ? "overbought" : (rsi<=30 ? "oversold" : "neutral"));
+
+    const hist = macd.hist;
+    const prevHist = hist[n-2], currHist = hist[n-1];
+    let macdCross = "none";
+    if(prevHist!=null && currHist!=null){
+      if(prevHist<=0 && currHist>0) macdCross = "golden";
+      else if(prevHist>=0 && currHist<0) macdCross = "dead";
+    }
+
+    const { support, resistance } = findSwingLevels(candles, 3, 60);
+    const recentWindow = candles.slice(-21,-1);
+    const recentHigh = recentWindow.length ? Math.max(...recentWindow.map(c=>c.h)) : last.h;
+    const recentLow = recentWindow.length ? Math.min(...recentWindow.map(c=>c.l)) : last.l;
+    const breakoutUp = last.c > recentHigh;
+    const breakoutDown = last.c < recentLow;
+
+    const body = Math.abs(last.c-last.o);
+    const range = (last.h-last.l) || 0.0001;
+    const upperWick = last.h - Math.max(last.o,last.c);
+    const lowerWick = Math.min(last.o,last.c) - last.l;
+    const longUpperWick = upperWick > body*1.3 && upperWick/range > 0.35;
+    const longLowerWick = lowerWick > body*1.3 && lowerWick/range > 0.35;
+
+    const avgVol20 = average(vols.slice(-21,-1));
+    const lastVol = vols[n-1];
+    const volSpike = avgVol20>0 && lastVol > avgVol20*1.5;
+    const recent5 = average(vols.slice(-5));
+    const prev5 = average(vols.slice(-10,-5));
+    const volumeTrendUp = prev5>0 && recent5 > prev5*1.1;
+    const volumeTrendDown = prev5>0 && recent5 < prev5*0.9;
+    const volNode = findVolumeNode(candles, 60, 10);
+
+    return {
+      symbol:data.symbol, currency:data.currency, candles,
+      ma20Series, ma60Series,
+      last, prevClose, ma20, ma60, maAlign,
+      rsi, rsiState, macd, macdCross,
+      support, resistance, breakoutUp, breakoutDown,
+      longUpperWick, longLowerWick,
+      avgVol20, lastVol, volSpike, volumeTrendUp, volumeTrendDown, volNode
+    };
+  }
+
+  // ================== FORMATTING ==================
+  function formatPrice(value, currency){
+    if(value==null || isNaN(value)) return "-";
+    if(currency === "KRW") return Math.round(value).toLocaleString("ko-KR") + "원";
+    return "$" + value.toFixed(2);
+  }
+  function formatPercent(value){
+    const sign = value>=0 ? "+" : "";
+    return sign + value.toFixed(2) + "%";
+  }
+  function formatDateShort(d){
+    return (d.getMonth()+1) + "/" + d.getDate();
+  }
+
+  // ================== RULE-BASED SIGNAL LOGIC ==================
+  function decide(score){
+    if(score > 0) return "BUY";
+    if(score < 0) return "SELL";
+    return "HOLD";
+  }
+
+  function evaluatePriceAction(ind){
+    const fp = v=>formatPrice(v, ind.currency);
+    let score=0; const reasons=[];
+    if(ind.breakoutUp){ score++; reasons.push(`최근 20일 고점(${fp(Math.max(...ind.candles.slice(-21,-1).map(c=>c.h)))}) 상향 돌파 → 상승 모멘텀 발생`); }
+    if(ind.breakoutDown){ score--; reasons.push(`최근 20일 저점(${fp(Math.min(...ind.candles.slice(-21,-1).map(c=>c.l)))}) 하향 이탈 → 하락 압력 발생`); }
+    if(ind.longLowerWick){ score++; reasons.push("직전 캔들에 긴 아래꼬리(존 윅) 발생 → 저점 매수세 유입 신호"); }
+    if(ind.longUpperWick){ score--; reasons.push("직전 캔들에 긴 위꼬리(존 윅) 발생 → 상단 매도세 유입 신호"); }
+    if(!ind.breakoutUp && !ind.breakoutDown){ reasons.push(`현재가가 지지선 ${fp(ind.support)} ~ 저항선 ${fp(ind.resistance)} 박스권 내에서 움직이는 중`); }
+    while(reasons.length<3) reasons.push(`현재가 ${fp(ind.last.c)}는 지지선 ${fp(ind.support)}, 저항선 ${fp(ind.resistance)} 사이에 위치`);
+
+    const signal = decide(score);
+    const report = `가격은 현재 ${fp(ind.last.c)}로, 지지선 ${fp(ind.support)}과 저항선 ${fp(ind.resistance)}을 기준으로 볼 때 ${ind.breakoutUp?"저항선을 상향 돌파":ind.breakoutDown?"지지선을 하향 이탈":"박스권 내에서 등락"}하고 있습니다. 직전 캔들은 ${ind.longUpperWick?"긴 위꼬리를 남기며 상단 매도 압력을 시사":ind.longLowerWick?"긴 아래꼬리를 남기며 저점 매수세를 시사":"뚜렷한 특이 캔들 패턴 없이 마감"}했습니다. 프라이스 액션 관점에서는 지지/저항 돌파 여부와 캔들 형태를 종합해 ${signal} 판단을 내립니다.`;
+    const stopLoss = fp(ind.support*0.98);
+    const targetPrice = ind.breakoutUp ? fp(ind.resistance*1.03) : fp(ind.resistance);
+    const caution = "돌파 발생 직후에는 되돌림(가짜 돌파, 휩쏘)이 나올 수 있으니 종가 기준 확정 여부를 확인하세요.";
+    return { signal, reasons: reasons.slice(0,3), report, stopLoss, targetPrice, caution };
+  }
+
+  function evaluateIndicator(ind){
+    const fp = v=>formatPrice(v, ind.currency);
+    let score=0; const reasons=[];
+    if(ind.maAlign==="golden"){ score++; reasons.push(`이동평균선 정배열 (MA20 ${fp(ind.ma20)} > MA60 ${fp(ind.ma60)}) → 중기 상승 추세`); }
+    else if(ind.maAlign==="dead"){ score--; reasons.push(`이동평균선 역배열 (MA20 ${fp(ind.ma20)} < MA60 ${fp(ind.ma60)}) → 중기 하락 추세`); }
+    else reasons.push("이동평균선이 뚜렷한 방향성 없이 수렴 중");
+
+    if(ind.rsiState==="oversold"){ score++; reasons.push(`RSI ${ind.rsi.toFixed(1)} 과매도 구간 진입 → 단기 반등 가능성`); }
+    else if(ind.rsiState==="overbought"){ score--; reasons.push(`RSI ${ind.rsi.toFixed(1)} 과매수 구간 진입 → 단기 조정 가능성`); }
+    else if(ind.rsi!=null) reasons.push(`RSI ${ind.rsi.toFixed(1)}로 중립 구간에서 움직이는 중`);
+
+    if(ind.macdCross==="golden"){ score++; reasons.push("MACD 골든크로스 발생 → 매수 전환 신호"); }
+    else if(ind.macdCross==="dead"){ score--; reasons.push("MACD 데드크로스 발생 → 매도 전환 신호"); }
+    else reasons.push("MACD는 뚜렷한 크로스 신호 없이 기존 흐름 유지 중");
+
+    const signal = decide(score);
+    const report = `이동평균선은 ${ind.maAlign==="golden"?"정배열 상태로 상승 추세를 뒷받침":ind.maAlign==="dead"?"역배열 상태로 하락 추세를 뒷받침":"뚜렷한 배열 없이 혼조세"}하고 있습니다. RSI는 ${ind.rsi!=null?ind.rsi.toFixed(1):"-"}로 ${ind.rsiState==="overbought"?"과매수":ind.rsiState==="oversold"?"과매도":"중립"} 구간에 있으며, MACD는 ${ind.macdCross==="golden"?"골든크로스가 발생해 매수 우위":ind.macdCross==="dead"?"데드크로스가 발생해 매도 우위":"특별한 크로스 없이 관망 국면"}로 판단됩니다. 보조지표 종합 관점에서 ${signal} 신호를 제시합니다.`;
+    const stopLoss = fp(ind.support*0.98);
+    const targetPrice = fp(ind.resistance);
+    const caution = "보조지표는 후행성 지표이므로 급격한 변동 구간에서는 다이버전스(가격-지표 역행) 여부도 함께 확인하세요.";
+    return { signal, reasons: reasons.slice(0,3), report, stopLoss, targetPrice, caution };
+  }
+
+  function evaluateVolume(ind){
+    const fp = v=>formatPrice(v, ind.currency);
+    let score=0; const reasons=[];
+    if(ind.breakoutUp && ind.volSpike){ score+=2; reasons.push("거래량이 크게 실린 상향 돌파 → 신뢰도 높은 상승 신호"); }
+    else if(ind.breakoutUp && !ind.volSpike){ reasons.push("거래량 동반 없는 상향 돌파 → 가짜 돌파(휩쏘) 가능성 주의"); }
+    if(ind.breakoutDown && ind.volSpike){ score-=2; reasons.push("거래량이 크게 실린 하향 이탈 → 신뢰도 높은 하락 신호"); }
+    else if(ind.breakoutDown && !ind.volSpike){ reasons.push("거래량 동반 없는 하향 이탈 → 단기 반등 여지 있음"); }
+
+    const nodeDesc = ind.last.c >= ind.volNode ? "주요 매물대 상단에서 지지력 확보" : "주요 매물대 하단에 위치해 저항 가능성";
+    if(ind.last.c >= ind.volNode) score++; else score--;
+    reasons.push(`매물대 밀집 구간(약 ${fp(ind.volNode)}) 대비 현재가 ${fp(ind.last.c)} → ${nodeDesc}`);
+
+    if(ind.volumeTrendUp) reasons.push("최근 5일 평균 거래량이 직전 대비 증가 → 매수 세력 유입 확대");
+    else if(ind.volumeTrendDown) reasons.push("최근 5일 평균 거래량이 직전 대비 감소 → 시장 관심도 저하");
+
+    const signal = decide(score);
+    const report = `거래량 측면에서 ${ind.breakoutUp?(ind.volSpike?"거래량이 실린 상향 돌파가 확인되어 신뢰도가 높습니다":"거래량이 뒷받침되지 않은 돌파로 신뢰도가 낮습니다"):ind.breakoutDown?(ind.volSpike?"거래량이 실린 하향 이탈로 매도 압력이 강합니다":"거래량 없는 이탈로 되돌림 가능성이 있습니다"):"뚜렷한 돌파 없이 매물대 부근에서 공방 중입니다"}. 주요 매물대는 약 ${fp(ind.volNode)} 부근으로, 현재가는 이 구간 ${ind.last.c>=ind.volNode?"위":"아래"}에 위치합니다. 최근 거래량 추세는 ${ind.volumeTrendUp?"증가":ind.volumeTrendDown?"감소":"보합"} 흐름을 보이고 있어, 거래량 분석 관점에서 ${signal} 신호를 제시합니다.`;
+    const stopLoss = fp(Math.min(ind.support, ind.volNode)*0.98);
+    const targetPrice = fp(ind.resistance);
+    const caution = "거래량 지표는 세력 수급 추정치일 뿐 확정적 지표가 아니므로, 다른 지표와 함께 교차 확인하세요.";
+    return { signal, reasons: reasons.slice(0,3), report, stopLoss, targetPrice, caution };
+  }
+
+  function evaluateAllInOne(ind){
+    const pa = evaluatePriceAction(ind);
+    const ti = evaluateIndicator(ind);
+    const vo = evaluateVolume(ind);
+    const scoreOf = s => s==="BUY"?1:(s==="SELL"?-1:0);
+    const total = scoreOf(pa.signal) + scoreOf(ti.signal) + scoreOf(vo.signal);
+    const signal = decide(total);
+
+    const reasons = [
+      `[프라이스 액션] ${pa.reasons[0]}`,
+      `[보조지표] ${ti.reasons[0]}`,
+      `[거래량] ${vo.reasons[0]}`
+    ];
+    const conflict = new Set([pa.signal, ti.signal, vo.signal]).size > 1;
+    const report = `프라이스 액션은 ${pa.signal}, 보조지표는 ${ti.signal}, 거래량 분석은 ${vo.signal} 신호를 각각 제시했습니다. ${conflict?"세 분석법 간 신호가 일부 엇갈리고 있어 보수적인 접근이 필요합니다.":"세 분석법이 동일한 방향성을 가리키고 있어 신뢰도가 높은 편입니다."} 종합적으로 판단할 때 현재가 ${formatPrice(ind.last.c, ind.currency)} 기준 최종 신호는 ${signal}입니다.`;
+    const fp = v=>formatPrice(v, ind.currency);
+    const stopLoss = fp(Math.min(ind.support, ind.volNode)*0.98);
+    const targetPrice = fp(ind.resistance*1.02);
+    const caution = conflict ? "세 분석법의 신호가 엇갈리므로 분할 매매 또는 추가 확인 후 진입을 권장합니다." : "세 분석법이 같은 방향을 가리키더라도 시장 전체 상황(지수, 뉴스)을 함께 점검하세요.";
+    return { signal, reasons, report, stopLoss, targetPrice, caution };
+  }
+
+  const EVALUATORS = {
+    price_action: evaluatePriceAction,
+    indicator: evaluateIndicator,
+    volume: evaluateVolume,
+    all_in_one: evaluateAllInOne
+  };
+
+  // ================== CHART RENDERING ==================
+  function renderChart(ind){
+    const candles = ind.candles.slice(-DISPLAY_LEN);
+    const offset = ind.candles.length - candles.length;
+    const ma20 = ind.ma20Series.slice(-DISPLAY_LEN);
+    const ma60 = ind.ma60Series.slice(-DISPLAY_LEN);
+    const labels = candles.map(c=>formatDateShort(c.date));
+    const closeData = candles.map(c=>c.c);
+    const volData = candles.map(c=>c.v);
+    const volColors = candles.map(c=> c.c>=c.o ? "rgba(46,160,67,0.7)" : "rgba(248,81,73,0.7)");
+
+    if(priceChart) priceChart.destroy();
+    if(volChart) volChart.destroy();
+
+    const priceCtx = document.getElementById("priceChartCanvas").getContext("2d");
+    priceChart = new Chart(priceCtx, {
+      type:"line",
+      data:{
+        labels,
+        datasets:[
+          { label:"종가", data:closeData, borderColor:"#58a6ff", borderWidth:1.8, pointRadius:0, tension:0.15 },
+          { label:"MA20", data:ma20, borderColor:"#d29922", borderWidth:1.2, pointRadius:0, tension:0.1 },
+          { label:"MA60", data:ma60, borderColor:"#a371f7", borderWidth:1.2, pointRadius:0, tension:0.1 },
+          { label:"저항선", data:candles.map(()=>ind.resistance), borderColor:"rgba(248,81,73,0.55)", borderDash:[5,5], borderWidth:1, pointRadius:0 },
+          { label:"지지선", data:candles.map(()=>ind.support), borderColor:"rgba(46,160,67,0.55)", borderDash:[5,5], borderWidth:1, pointRadius:0 }
+        ]
       },
-      body: JSON.stringify({
-        model: "claude-3-5-sonnet-20241022",
-        max_tokens: 1200,
-        system: systemPrompt,
-        messages: [{ role:"user", content: content }]
-      })
+      options:{
+        responsive:true,
+        interaction:{ mode:"index", intersect:false },
+        scales:{
+          x:{ ticks:{ color:"#8b949e", maxTicksLimit:8 }, grid:{ color:"#21262d" } },
+          y:{ ticks:{ color:"#8b949e" }, grid:{ color:"#21262d" } }
+        },
+        plugins:{ legend:{ labels:{ color:"#c9d1d9", boxWidth:12, font:{ size:10 } } } }
+      }
     });
-    if(!res.ok){
-      const errText = await safeErrText(res);
-      throw new Error(`Claude API 오류 (${res.status}): ${errText}`);
-    }
-    const data = await res.json();
-    const text = data.content.map(c=>c.text || "").join("");
-    return parseJsonLoose(text);
+
+    const volCtx = document.getElementById("volChartCanvas").getContext("2d");
+    volChart = new Chart(volCtx, {
+      type:"bar",
+      data:{ labels, datasets:[{ label:"거래량", data:volData, backgroundColor:volColors }] },
+      options:{
+        responsive:true,
+        scales:{
+          x:{ ticks:{ color:"#8b949e", maxTicksLimit:8 }, grid:{ display:false } },
+          y:{ ticks:{ color:"#8b949e" }, grid:{ color:"#21262d" } }
+        },
+        plugins:{ legend:{ display:false } }
+      }
+    });
   }
 
-  async function safeErrText(res){
-    try{
-      const j = await res.json();
-      return j.error?.message || JSON.stringify(j);
-    }catch(e){
-      return await res.text();
-    }
-  }
-
-  function parseJsonLoose(text){
-    let t = text.trim();
-    t = t.replace(/^```json\s*/i, "").replace(/^```\s*/,"").replace(/```\s*$/,"");
-    const start = t.indexOf("{");
-    const end = t.lastIndexOf("}");
-    if(start === -1 || end === -1) throw new Error("AI 응답을 JSON으로 해석할 수 없습니다:\n" + text);
-    return JSON.parse(t.slice(start, end+1));
-  }
-
-  // ---------- render ----------
+  // ================== UI STATE ==================
   function setLoading(isLoading){
     analyzeBtn.disabled = isLoading;
     placeholder.hidden = true;
     errorWrap.hidden = true;
-    if(isLoading){
-      resultWrap.hidden = true;
-      loadingWrap.hidden = false;
-    } else {
-      loadingWrap.hidden = true;
-    }
+    if(isLoading){ resultWrap.hidden = true; loadingWrap.hidden = false; }
+    else{ loadingWrap.hidden = true; }
   }
-
   function showError(msg){
     placeholder.hidden = true;
     resultWrap.hidden = true;
     errorWrap.hidden = false;
     errorBox.textContent = msg;
   }
+  function escapeHtml(str){
+    return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  }
 
-  function renderResult(r){
-    const signal = (r.signal || "HOLD").toUpperCase();
-    const reasons = Array.isArray(r.keyReasons) ? r.keyReasons : [];
+  function renderResult(ind, out){
     errorWrap.hidden = true;
     placeholder.hidden = true;
 
-    resultWrap.innerHTML = `
-      <div class="result-card signal-card">
-        <div class="signal-badge ${signal}">[ ${signal} ]</div>
-        <div class="result-mode-name">${MODE_TITLE[selectedMode] || selectedMode}</div>
-      </div>
-      <div class="result-card">
-        <h3>핵심 판단 근거 3가지</h3>
-        <ul class="checklist">
-          ${reasons.map(x=>`<li>${escapeHtml(x)}</li>`).join("")}
-        </ul>
-      </div>
-      <div class="result-card">
-        <h3>상세 분석 리포트</h3>
-        <p class="report-text">${escapeHtml(r.report || "")}</p>
-      </div>
-      <div class="result-card">
-        <h3>리스크 관리</h3>
-        <div class="risk-row"><span>손절가 (Stop Loss)</span><strong>${escapeHtml(r.stopLoss || "-")}</strong></div>
-        <div class="risk-row"><span>목표가 (Target Price)</span><strong>${escapeHtml(r.targetPrice || "-")}</strong></div>
-        <p class="caution-text">⚠ ${escapeHtml(r.caution || "")}</p>
-      </div>
-      <p class="disclaimer">※ 본 분석은 AI가 생성한 참고 자료이며 투자 자문이 아닙니다. 투자 판단과 책임은 본인에게 있습니다.</p>
-    `;
+    const change = ind.last.c - ind.prevClose;
+    const changePct = (change/ind.prevClose)*100;
+    document.getElementById("quoteSymbol").textContent = ind.symbol;
+    document.getElementById("quotePrice").textContent = formatPrice(ind.last.c, ind.currency);
+    const changeEl = document.getElementById("quoteChange");
+    changeEl.textContent = `${formatPrice(change, ind.currency)} (${formatPercent(changePct)})`;
+    changeEl.className = "quote-change " + (change>=0 ? "up" : "down");
+
+    renderChart(ind);
+
+    const signal = out.signal;
+    const badge = document.getElementById("signalBadge");
+    badge.textContent = `[ ${signal} ]`;
+    badge.className = "signal-badge " + signal;
+    document.getElementById("resultModeName").textContent = MODE_TITLE[selectedMode] || selectedMode;
+
+    document.getElementById("keyReasonsList").innerHTML = out.reasons.map(r=>`<li>${escapeHtml(r)}</li>`).join("");
+    document.getElementById("reportText").textContent = out.report;
+    document.getElementById("stopLossText").textContent = out.stopLoss;
+    document.getElementById("targetPriceText").textContent = out.targetPrice;
+    document.getElementById("cautionText").textContent = "⚠ " + out.caution;
+
     resultWrap.hidden = false;
   }
 
-  function escapeHtml(str){
-    return String(str)
-      .replace(/&/g,"&amp;")
-      .replace(/</g,"&lt;")
-      .replace(/>/g,"&gt;");
-  }
+  // ================== MAIN FLOW ==================
+  analyzeBtn.addEventListener("click", async ()=>{
+    if(!selectedMode){ alert("분석 모드를 먼저 선택해주세요."); return; }
+    const raw = tickerInput.value.trim();
+    if(!raw){ alert("종목명 또는 티커를 입력해주세요."); return; }
+
+    setLoading(true);
+    try{
+      const data = await resolveAndFetch(raw);
+      const ind = computeIndicators(data);
+      const out = EVALUATORS[selectedMode](ind);
+      renderResult(ind, out);
+    }catch(err){
+      showError(err && err.message ? err.message : String(err));
+    }finally{
+      setLoading(false);
+    }
+  });
 })();
 </script>
 </body>
