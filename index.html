@@ -101,6 +101,11 @@
   @media (max-width:900px){
     .main-container{grid-template-columns:1fr;}
   }
+  .sidebar{
+    display:flex;
+    flex-direction:column;
+    gap:20px;
+  }
   .panel{
     background:var(--bg-panel);
     border:1px solid var(--border);
@@ -369,7 +374,8 @@
 </header>
 
 <main class="main-container">
-  <!-- LEFT: input -->
+  <!-- LEFT: sidebar (입력/모드선택/용어가이드를 하나의 컬럼으로 고정) -->
+  <div class="sidebar">
   <section class="panel">
     <h2>1. 종목 입력</h2>
     <div class="ticker-input-row">
@@ -400,7 +406,35 @@
     <button class="btn-analyze" id="analyzeBtn">🚀 선택한 모드로 분석 시작</button>
   </section>
 
-  <!-- RIGHT: result -->
+  <!-- BOTTOM LEFT: glossary -->
+  <section class="panel">
+    <h2>📚 주요 주식 용어 가이드</h2>
+    <div class="glossary-list">
+      <div class="glossary-item">
+        <span class="glossary-term">종가 (Close)</span>
+        <span class="glossary-desc">주식 시장 마감 시 최종 거래 가격 — 기술적 분석의 핵심 기준</span>
+      </div>
+      <div class="glossary-item">
+        <span class="glossary-term">MA20 (20일 이동평균선)</span>
+        <span class="glossary-desc">최근 20일간의 평균 주가 — 단기 추세선</span>
+      </div>
+      <div class="glossary-item">
+        <span class="glossary-term">MA60 (60일 이동평균선)</span>
+        <span class="glossary-desc">최근 60일간의 평균 주가 — 중기 수급선</span>
+      </div>
+      <div class="glossary-item">
+        <span class="glossary-term">RSI</span>
+        <span class="glossary-desc">주가의 과매수(70 이상) / 과매도(30 이하) 상태를 나타내는 지표</span>
+      </div>
+      <div class="glossary-item">
+        <span class="glossary-term">MACD</span>
+        <span class="glossary-desc">이동평균선의 차이를 이용한 매매 신호 지표</span>
+      </div>
+    </div>
+  </section>
+  </div>
+
+  <!-- RIGHT: result (독립된 그리드 컬럼 — 사이드바 높이와 무관) -->
   <section class="panel right-panel">
     <div class="placeholder" id="placeholder">좌측에서 종목을 입력하고 모드를 선택한 뒤 분석을 시작하세요.</div>
     <div class="loading-wrap" id="loadingWrap" hidden>
@@ -444,33 +478,6 @@
         <p class="caution-text" id="cautionText"></p>
       </div>
       <p class="disclaimer">※ 본 분석은 공개 시세 데이터를 기반으로 자동 계산된 참고 자료이며 투자 자문이 아닙니다. 투자 판단과 책임은 본인에게 있습니다.</p>
-    </div>
-  </section>
-
-  <!-- BOTTOM LEFT: glossary -->
-  <section class="panel">
-    <h2>📚 주요 주식 용어 가이드</h2>
-    <div class="glossary-list">
-      <div class="glossary-item">
-        <span class="glossary-term">종가 (Close)</span>
-        <span class="glossary-desc">주식 시장 마감 시 최종 거래 가격 — 기술적 분석의 핵심 기준</span>
-      </div>
-      <div class="glossary-item">
-        <span class="glossary-term">MA20 (20일 이동평균선)</span>
-        <span class="glossary-desc">최근 20일간의 평균 주가 — 단기 추세선</span>
-      </div>
-      <div class="glossary-item">
-        <span class="glossary-term">MA60 (60일 이동평균선)</span>
-        <span class="glossary-desc">최근 60일간의 평균 주가 — 중기 수급선</span>
-      </div>
-      <div class="glossary-item">
-        <span class="glossary-term">RSI</span>
-        <span class="glossary-desc">주가의 과매수(70 이상) / 과매도(30 이하) 상태를 나타내는 지표</span>
-      </div>
-      <div class="glossary-item">
-        <span class="glossary-term">MACD</span>
-        <span class="glossary-desc">이동평균선의 차이를 이용한 매매 신호 지표</span>
-      </div>
     </div>
   </section>
 </main>
